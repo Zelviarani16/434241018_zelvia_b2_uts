@@ -1,40 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ticketing_434241018_zelvia_b2_uts/core/services/local_storage_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/data/models/user_model.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/data/repositories/auth_repository.dart';
 
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository();
-});
-
-final localStorageProvider = Provider<LocalStorageService>((ref) {
-  return LocalStorageService();
-});
-
 class AuthState {
   final UserModel? user;
-  final String? token;
   final bool isLoading;
   final String? error;
 
-  AuthState({
-    this.user,
-    this.token,
-    this.isLoading = false,
-    this.error,
-  });
+  const AuthState({this.user, this.isLoading = false, this.error});
 
-  bool get isLoggedIn => token != null && user != null;
-
-  AuthState copyWith({
-    UserModel? user,
-    String? token,
-    bool? isLoading,
-    String? error,
-  }) {
+  AuthState copyWith({UserModel? user, bool? isLoading, String? error}) {
     return AuthState(
       user: user ?? this.user,
-      token: token ?? this.token,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -43,62 +22,47 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
-  final LocalStorageService _storage;
 
-  AuthNotifier(this._repository, this._storage) : super(AuthState()) {
-    _checkLogin();
+  AuthNotifier(this._repository) : super(const AuthState()) {
+    _loadFromPrefs(); // Auto-login jika sudah pernah login
   }
 
-  Future<void> _checkLogin() async {
-    final token = await _storage.getToken();
-    final userData = await _storage.getUser();
-    if (token != null && userData != null) {
-      state = state.copyWith(
-        token: token,
-        user: UserModel.fromJson(userData),
-      );
+  // Load user dari SharedPreferences agar role persist setelah restart
+  Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userData = prefs.getString('user_data');
+    if (userData != null) {
+      final user = UserModel.fromJson(jsonDecode(userData));
+      state = state.copyWith(user: user);
     }
   }
 
-  Future<bool> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<bool> login({required String email, required String password}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final result = await _repository.login(
-        email: email,
-        password: password,
-      );
+      final result = await _repository.login(email: email, password: password);
       final user = UserModel.fromJson(result['user']);
-      final token = result['token'] as String;
 
-      await _storage.saveToken(token);
-      await _storage.saveUser(result['user']);
+      // Simpan ke SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_data', jsonEncode(user.toJson()));
+      await prefs.setString('auth_token', result['token']);
 
-      state = state.copyWith(
-        user: user,
-        token: token,
-        isLoading: false,
-      );
+      state = state.copyWith(user: user, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString().replaceAll('Exception: ', ''));
       return false;
     }
   }
 
   Future<void> logout() async {
-    await _storage.clearAll();
-    state = AuthState();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    state = const AuthState();
   }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  final repository = ref.watch(authRepositoryProvider);
-  final storage = ref.watch(localStorageProvider);
-  return AuthNotifier(repository, storage);
+  return AuthNotifier(AuthRepository());
 });

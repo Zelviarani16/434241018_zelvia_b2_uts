@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/presentation/providers/auth_provider.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/data/repositories/ticket_repository.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/providers/ticket_provider.dart';
 
@@ -22,11 +23,7 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
 
   final List<String> _priorities = ['low', 'medium', 'high', 'critical'];
   final List<String> _categories = [
-    'Hardware',
-    'Software',
-    'Network',
-    'Email',
-    'Lainnya'
+    'Hardware', 'Software', 'Network', 'Email', 'Lainnya'
   ];
 
   @override
@@ -55,7 +52,6 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Judul
               const Text('Judul Tiket',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
@@ -65,11 +61,9 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                   hintText: 'Masukkan judul masalah',
                 ),
                 validator: (v) =>
-                v!.isEmpty ? 'Judul tidak boleh kosong' : null,
+                    v!.isEmpty ? 'Judul tidak boleh kosong' : null,
               ),
               const SizedBox(height: 16),
-
-              // Deskripsi
               const Text('Deskripsi',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
@@ -80,11 +74,9 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                   hintText: 'Jelaskan masalah secara detail',
                 ),
                 validator: (v) =>
-                v!.isEmpty ? 'Deskripsi tidak boleh kosong' : null,
+                    v!.isEmpty ? 'Deskripsi tidak boleh kosong' : null,
               ),
               const SizedBox(height: 16),
-
-              // Kategori
               const Text('Kategori',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
@@ -97,8 +89,6 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                 decoration: const InputDecoration(),
               ),
               const SizedBox(height: 16),
-
-              // Prioritas
               const Text('Prioritas',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
@@ -108,13 +98,10 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                   return ChoiceChip(
                     label: Text(p.toUpperCase()),
                     selected: _priority == p,
-                    selectedColor:
-                    _getPriorityColor(p).withOpacity(0.2),
+                    selectedColor: _getPriorityColor(p).withOpacity(0.2),
                     onSelected: (_) => setState(() => _priority = p),
                     labelStyle: TextStyle(
-                      color: _priority == p
-                          ? _getPriorityColor(p)
-                          : null,
+                      color: _priority == p ? _getPriorityColor(p) : null,
                       fontWeight: _priority == p
                           ? FontWeight.bold
                           : FontWeight.normal,
@@ -123,8 +110,6 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                 }).toList(),
               ),
               const SizedBox(height: 16),
-
-              // Attachment
               const Text('Lampiran (Opsional)',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
@@ -149,58 +134,53 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                     style: const TextStyle(color: Colors.green)),
               ],
               const SizedBox(height: 24),
-
-              // Submit
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _isLoading
                       ? null
                       : () async {
-                    if (_formKey.currentState!.validate()) {
-                      setState(() => _isLoading = true);
-                      try {
-                        await TicketRepository().createTicket(
-                          title: _titleController.text,
-                          description: _descController.text,
-                          priority: _priority,
-                          category: _category,
-                        );
-                        ref.invalidate(ticketNotifierProvider);
-                        ref.invalidate(ticketStatsProvider);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(
-                            const SnackBar(
-                              content:
-                              Text('Tiket berhasil dibuat!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                          Navigator.pop(context);
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(
-                            SnackBar(
-                                content: Text(e.toString())),
-                          );
-                        }
-                      } finally {
-                        if (mounted) {
-                          setState(() => _isLoading = false);
-                        }
-                      }
-                    }
-                  },
+                          if (_formKey.currentState!.validate()) {
+                            setState(() => _isLoading = true);
+                            try {
+                              // Ambil userId dari authProvider
+                              final userId = ref.read(authProvider).user?.id ?? '1';
+                              await TicketRepository().createTicket(
+                                title: _titleController.text,
+                                description: _descController.text,
+                                priority: _priority,
+                                category: _category,
+                                createdBy: userId, // Pakai userId yang login
+                              );
+                              ref.invalidate(ticketNotifierProvider);
+                              ref.invalidate(ticketStatsProvider);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Tiket berhasil dibuat!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                                Navigator.pop(context);
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            } finally {
+                              if (mounted) setState(() => _isLoading = false);
+                            }
+                          }
+                        },
                   icon: _isLoading
                       ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2),
-                  )
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2),
+                        )
                       : const Icon(Icons.send_outlined),
                   label: const Text('Kirim Tiket'),
                 ),
@@ -214,16 +194,11 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
 
   Color _getPriorityColor(String p) {
     switch (p) {
-      case 'low':
-        return Colors.green;
-      case 'medium':
-        return Colors.orange;
-      case 'high':
-        return Colors.red;
-      case 'critical':
-        return const Color(0xFF7C0000);
-      default:
-        return Colors.grey;
+      case 'low': return Colors.green;
+      case 'medium': return Colors.orange;
+      case 'high': return Colors.red;
+      case 'critical': return const Color(0xFF7C0000);
+      default: return Colors.grey;
     }
   }
 }

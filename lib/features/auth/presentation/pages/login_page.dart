@@ -133,18 +133,20 @@ Align(
                 
 
                 // Hint akun
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Demo: user@example.com / 123456\nAdmin: admin@example.com / 123456',
-                    style: TextStyle(fontSize: 12, color: Colors.blue),
-                  ),
-                ),
-                const SizedBox(height: 24),
+Container(
+  padding: const EdgeInsets.all(12),
+  decoration: BoxDecoration(
+    color: Colors.blue.shade50,
+    borderRadius: BorderRadius.circular(8),
+  ),
+  child: const Text(
+    'Demo Login:\n'
+    '👤 User    : user@example.com / 123456\n'
+    '🛠 Helpdesk: helpdesk@example.com / 123456\n'
+    '👑 Admin   : admin@example.com / 123456',
+    style: TextStyle(fontSize: 12, color: Colors.blue),
+  ),
+),
 
                 // Error message
                 if (authState.error != null)

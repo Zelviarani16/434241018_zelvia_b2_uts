@@ -3,14 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/core/widgets/common_widgets.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/presentation/providers/auth_provider.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/presentation/pages/login_page.dart';
-import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/data/models/ticket_model.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/providers/ticket_provider.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/ticket_list_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/create_ticket_page.dart';
-import 'package:ticketing_434241018_zelvia_b2_uts/features/profile/presentation/pages/profile_page.dart';
-import 'package:ticketing_434241018_zelvia_b2_uts/core/theme/app_theme.dart';
-import 'package:ticketing_434241018_zelvia_b2_uts/features/notification/presentation/pages/notification_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/ticket_history_page.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/features/profile/presentation/pages/profile_page.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/features/notification/presentation/pages/notification_page.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/core/theme/app_theme.dart';
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
@@ -20,6 +19,8 @@ class DashboardPage extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final statsAsync = ref.watch(ticketStatsProvider);
     final isDark = ref.watch(themeModeProvider);
+    final role = authState.user?.role ?? 'user';
+    final isAdminOrHelpdesk = role == 'admin' || role == 'helpdesk';
 
     return Scaffold(
       body: CustomScrollView(
@@ -71,21 +72,21 @@ class DashboardPage extends ConsumerWidget {
                           ),
                           Row(
                             children: [
-
-
-                              // Tambahkan sebelum dark mode toggle
-IconButton(
-  icon: Badge(
-    label: const Text('2'),
-    child: const Icon(Icons.notifications_outlined, color: Colors.white),
-  ),
-  onPressed: () => Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const NotificationPage()),
-  ),
-),
-
-                              // Dark mode toggle
+                              IconButton(
+                                icon: Badge(
+                                  label: const Text('2'),
+                                  child: const Icon(
+                                    Icons.notifications_outlined,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const NotificationPage(),
+                                  ),
+                                ),
+                              ),
                               IconButton(
                                 icon: Icon(
                                   isDark
@@ -97,7 +98,6 @@ IconButton(
                                     .read(themeModeProvider.notifier)
                                     .state = !isDark,
                               ),
-                              // Logout
                               IconButton(
                                 icon: const Icon(Icons.logout,
                                     color: Colors.white),
@@ -109,7 +109,8 @@ IconButton(
                                     Navigator.pushReplacement(
                                       context,
                                       MaterialPageRoute(
-                                          builder: (_) => const LoginPage()),
+                                        builder: (_) => const LoginPage(),
+                                      ),
                                     );
                                   }
                                 },
@@ -118,7 +119,7 @@ IconButton(
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                       // Role badge
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -128,7 +129,9 @@ IconButton(
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          'Role: ${authState.user?.role.toUpperCase() ?? '-'}',
+                          isAdminOrHelpdesk
+                              ? '${role.toUpperCase()} — Akses Pengelola'
+                              : 'USER — Pelapor Tiket',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -143,16 +146,18 @@ IconButton(
             ),
           ),
 
-          // Stats
           SliverPadding(
             padding: const EdgeInsets.all(24),
             sliver: SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Statistik Tiket',
-                    style: TextStyle(
+                  // Statistik
+                  Text(
+                    isAdminOrHelpdesk
+                        ? 'Statistik Semua Tiket'
+                        : 'Statistik Tiket Saya',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -199,7 +204,7 @@ IconButton(
                   ),
                   const SizedBox(height: 24),
 
-                  // Quick Actions
+                  // Menu — BEDA PER ROLE
                   const Text(
                     'Menu',
                     style: TextStyle(
@@ -208,69 +213,140 @@ IconButton(
                     ),
                   ),
                   const SizedBox(height: 16),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.5,
-                    children: [
-                      _MenuCard(
-                        label: 'Daftar Tiket',
-                        icon: Icons.list_alt_outlined,
-                        color: const Color(0xFF2563EB),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const TicketListPage()),
+
+                  // Menu untuk USER
+                  if (!isAdminOrHelpdesk)
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.5,
+                      children: [
+                        _MenuCard(
+                          label: 'Buat Tiket',
+                          icon: Icons.add_circle_outline,
+                          color: const Color(0xFF10B981),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CreateTicketPage(),
+                            ),
+                          ),
                         ),
-                      ),
-                      _MenuCard(
-                        label: 'Buat Tiket',
-                        icon: Icons.add_circle_outline,
-                        color: const Color(0xFF10B981),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const CreateTicketPage()),
+                        _MenuCard(
+                          label: 'Tiket Saya',
+                          icon: Icons.list_alt_outlined,
+                          color: const Color(0xFF2563EB),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TicketListPage(),
+                            ),
+                          ),
                         ),
-                      ),
-                      _MenuCard(
-                        label: 'Profile',
-                        icon: Icons.person_outline,
-                        color: const Color(0xFF7C3AED),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const ProfilePage()),
+                        _MenuCard(
+                          label: 'Riwayat',
+                          icon: Icons.history_outlined,
+                          color: const Color(0xFFF59E0B),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TicketHistoryPage(),
+                            ),
+                          ),
                         ),
-                      ),
-                _MenuCard(
-                  label: 'Riwayat',
-                  icon: Icons.history_outlined,
-                  color: const Color(0xFFF59E0B),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const TicketHistoryPage()),
+                        _MenuCard(
+                          label: 'Profile',
+                          icon: Icons.person_outline,
+                          color: const Color(0xFF7C3AED),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfilePage(),
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+
+                  // Menu untuk ADMIN / HELPDESK
+                  if (isAdminOrHelpdesk)
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.5,
+                      children: [
+                        _MenuCard(
+                          label: 'Semua Tiket',
+                          icon: Icons.list_alt_outlined,
+                          color: const Color(0xFF2563EB),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TicketListPage(),
+                            ),
+                          ),
+                        ),
+                        _MenuCard(
+                          label: 'Tiket Open',
+                          icon: Icons.folder_open_outlined,
+                          color: const Color(0xFF3B82F6),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TicketListPage(
+                                filterStatus: 'open',
+                              ),
+                            ),
+                          ),
+                        ),
+                        _MenuCard(
+                          label: 'Riwayat',
+                          icon: Icons.history_outlined,
+                          color: const Color(0xFFF59E0B),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TicketHistoryPage(),
+                            ),
+                          ),
+                        ),
+                        _MenuCard(
+                          label: 'Profile',
+                          icon: Icons.person_outline,
+                          color: const Color(0xFF7C3AED),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfilePage(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CreateTicketPage()),
-        ),
-        icon: const Icon(Icons.add),
-        label: const Text('Buat Tiket'),
-      ),
+
+      // FAB hanya untuk USER (buat tiket)
+      floatingActionButton: !isAdminOrHelpdesk
+          ? FloatingActionButton.extended(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CreateTicketPage()),
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('Buat Tiket'),
+            )
+          : null,
     );
   }
 }
