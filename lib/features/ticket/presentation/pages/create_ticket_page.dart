@@ -33,11 +33,65 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
     super.dispose();
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(source: source);
-    if (image != null) {
-      setState(() => _attachments.add(image.path));
+  // Kamera — di emulator tidak ada kamera fisik, di device asli bisa
+  Future<void> _pickFromCamera() async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+      if (image != null && mounted) {
+        setState(() => _attachments.add(image.name));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Foto "${image.name}" berhasil ditambahkan'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Kamera tidak dapat diakses di emulator. '
+              'Coba di device asli, atau gunakan Galeri.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // Galeri
+  Future<void> _pickFromGallery() async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      if (image != null && mounted) {
+        setState(() => _attachments.add(image.name));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Foto "${image.name}" berhasil ditambahkan'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Galeri tidak dapat dibuka.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -64,6 +118,7 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                     v!.isEmpty ? 'Judul tidak boleh kosong' : null,
               ),
               const SizedBox(height: 16),
+
               const Text('Deskripsi',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
@@ -77,6 +132,7 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                     v!.isEmpty ? 'Deskripsi tidak boleh kosong' : null,
               ),
               const SizedBox(height: 16),
+
               const Text('Kategori',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
@@ -89,6 +145,7 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                 decoration: const InputDecoration(),
               ),
               const SizedBox(height: 16),
+
               const Text('Prioritas',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
@@ -110,30 +167,61 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                 }).toList(),
               ),
               const SizedBox(height: 16),
+
               const Text('Lampiran (Opsional)',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
+
+              // Dua tombol terpisah — Galeri dan Kamera
               Row(
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.gallery),
-                    icon: const Icon(Icons.photo_library_outlined),
-                    label: const Text('Galeri'),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickFromGallery,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: const Text('Galeri'),
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.camera),
-                    icon: const Icon(Icons.camera_alt_outlined),
-                    label: const Text('Kamera'),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickFromCamera,
+                      icon: const Icon(Icons.camera_alt_outlined),
+                      label: const Text('Kamera'),
+                    ),
                   ),
                 ],
               ),
+
+              // Info emulator
+              const SizedBox(height: 6),
+              Text(
+                '* Kamera hanya berfungsi di device asli (bukan emulator)',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+
               if (_attachments.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text('${_attachments.length} file terlampir',
-                    style: const TextStyle(color: Colors.green)),
+                Wrap(
+                  spacing: 8,
+                  children: List.generate(
+                    _attachments.length,
+                    (i) => Chip(
+                      avatar: const Icon(Icons.image_outlined, size: 16),
+                      label: Text(
+                        _attachments[i],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      deleteIcon: const Icon(Icons.close, size: 16),
+                      onDeleted: () =>
+                          setState(() => _attachments.removeAt(i)),
+                    ),
+                  ),
+                ),
               ],
               const SizedBox(height: 24),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -143,14 +231,14 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                           if (_formKey.currentState!.validate()) {
                             setState(() => _isLoading = true);
                             try {
-                              // Ambil userId dari authProvider
-                              final userId = ref.read(authProvider).user?.id ?? '1';
+                              final userId =
+                                  ref.read(authProvider).user?.id ?? '1';
                               await TicketRepository().createTicket(
                                 title: _titleController.text,
                                 description: _descController.text,
                                 priority: _priority,
                                 category: _category,
-                                createdBy: userId, // Pakai userId yang login
+                                createdBy: userId,
                               );
                               ref.invalidate(ticketNotifierProvider);
                               ref.invalidate(ticketStatsProvider);
@@ -170,7 +258,8 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                                 );
                               }
                             } finally {
-                              if (mounted) setState(() => _isLoading = false);
+                              if (mounted)
+                                setState(() => _isLoading = false);
                             }
                           }
                         },

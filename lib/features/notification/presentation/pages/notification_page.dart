@@ -1,78 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/core/theme/app_theme.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/features/notification/presentation/providers/notification_provider.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/ticket_detail_page.dart';
 
-class NotificationModel {
-  final String id;
-  final String title;
-  final String message;
-  final String ticketId;
-  final String status;
-  final DateTime createdAt;
-  bool isRead;
-
-  NotificationModel({
-    required this.id,
-    required this.title,
-    required this.message,
-    required this.ticketId,
-    required this.status,
-    required this.createdAt,
-    this.isRead = false,
-  });
-}
-
-class NotificationPage extends StatefulWidget {
+class NotificationPage extends ConsumerWidget {
   const NotificationPage({super.key});
 
   @override
-  State<NotificationPage> createState() => _NotificationPageState();
-}
-
-class _NotificationPageState extends State<NotificationPage> {
-  final List<NotificationModel> _notifications = [
-    NotificationModel(
-      id: '1',
-      title: 'Tiket Diproses',
-      message: 'Tiket "Internet lambat di gedung A" sedang diproses oleh helpdesk.',
-      ticketId: '2',
-      status: 'in_progress',
-      createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-    ),
-    NotificationModel(
-      id: '2',
-      title: 'Tiket Diselesaikan',
-      message: 'Tiket "Software tidak bisa diinstall" telah diselesaikan.',
-      ticketId: '3',
-      status: 'resolved',
-      createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-      isRead: true,
-    ),
-    NotificationModel(
-      id: '3',
-      title: 'Tiket Baru',
-      message: 'Tiket baru "Komputer tidak bisa menyala" telah diterima.',
-      ticketId: '1',
-      status: 'open',
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final unreadCount = _notifications.where((n) => !n.isRead).length;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifications = ref.watch(notificationProvider);
+    final unreadCount = ref.watch(unreadNotifCountProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Notifikasi ($unreadCount belum dibaca)'),
         actions: [
           TextButton(
-            onPressed: () {
-              setState(() {
-                for (var n in _notifications) {
-                  n.isRead = true;
-                }
-              });
-            },
+            onPressed: () =>
+                ref.read(notificationProvider.notifier).markAllAsRead(),
             child: const Text(
               'Tandai semua',
               style: TextStyle(color: Colors.white),
@@ -80,7 +26,7 @@ class _NotificationPageState extends State<NotificationPage> {
           ),
         ],
       ),
-      body: _notifications.isEmpty
+      body: notifications.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -97,13 +43,14 @@ class _NotificationPageState extends State<NotificationPage> {
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: _notifications.length,
+              itemCount: notifications.length,
               itemBuilder: (context, index) {
-                final notif = _notifications[index];
+                final notif = notifications[index];
                 return Dismissible(
                   key: Key(notif.id),
+                  direction: DismissDirection.endToStart,
                   onDismissed: (_) {
-                    setState(() => _notifications.removeAt(index));
+                    ref.read(notificationProvider.notifier).remove(notif.id);
                   },
                   background: Container(
                     color: Colors.red,
@@ -117,13 +64,16 @@ class _NotificationPageState extends State<NotificationPage> {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
                       onTap: () {
-                        setState(() => notif.isRead = true);
+                        // Tandai sudah dibaca — badge langsung berkurang
+                        ref
+                            .read(notificationProvider.notifier)
+                            .markAsRead(notif.id);
                         // Navigasi ke detail tiket
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Navigasi ke tiket #${notif.ticketId}'),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                TicketDetailPage(ticketId: notif.ticketId),
                           ),
                         );
                       },

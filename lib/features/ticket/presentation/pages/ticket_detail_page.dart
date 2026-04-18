@@ -16,6 +16,9 @@ class TicketDetailPage extends ConsumerStatefulWidget {
 
 class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
   final _commentController = TextEditingController();
+  String? _selectedStatus;
+  String? _selectedAssignee;
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -23,9 +26,63 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
     super.dispose();
   }
 
+  Future<void> _sendComment(String role, String name) async {
+    if (_commentController.text.trim().isEmpty) return;
+    final content = _commentController.text.trim();
+    _commentController.clear();
+
+    await TicketRepository().addComment(
+      ticketId: widget.ticketId,
+      content: content,
+      authorName: name,
+      authorRole: role,
+    );
+    // Refresh detail agar komentar tampil
+    ref.invalidate(ticketDetailProvider(widget.ticketId));
+    ref.invalidate(ticketNotifierProvider);
+  }
+
+  Future<void> _saveChanges() async {
+    setState(() => _isSaving = true);
+    try {
+      if (_selectedStatus != null) {
+        await TicketRepository().updateTicketStatus(
+          ticketId: widget.ticketId,
+          status: _selectedStatus!,
+        );
+      }
+      if (_selectedAssignee != null) {
+        await TicketRepository().assignTicket(
+          ticketId: widget.ticketId,
+          assignedTo: _selectedAssignee,
+        );
+      }
+      ref.invalidate(ticketDetailProvider(widget.ticketId));
+      ref.invalidate(ticketNotifierProvider);
+      ref.invalidate(ticketStatsProvider); // Update statistik dashboard
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Perubahan berhasil disimpan!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {
+          _selectedStatus = null;
+          _selectedAssignee = null;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ticketAsync = ref.watch(ticketDetailProvider(widget.ticketId));
+    final authState = ref.watch(authProvider);
+    final role = authState.user?.role ?? 'user';
+    final isAdminOrHelpdesk = role == 'admin' || role == 'helpdesk';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detail Tiket')),
@@ -33,15 +90,15 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
         loading: () => const LoadingWidget(),
         error: (e, _) => CustomErrorWidget(message: e.toString()),
         data: (ticket) {
-          // ✅ Deklarasi variabel di sini, sebelum return
-          final authState = ref.watch(authProvider);
+          // Inisialisasi nilai dropdown dari data tiket
+          _selectedStatus ??= ticket.status;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Card
+                // ===== HEADER CARD =====
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -69,111 +126,166 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
                                 color: Colors.grey.shade100,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Text(
-                                ticket.category,
-                                style: const TextStyle(fontSize: 11),
-                              ),
+                              child: Text(ticket.category,
+                                  style: const TextStyle(fontSize: 11)),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          ticket.description,
-                          style: TextStyle(color: Colors.grey.shade700),
-                        ),
-                        const SizedBox(height: 12),
+                        Text(ticket.description,
+                            style: TextStyle(color: Colors.grey.shade700)),
+                        const SizedBox(height: 8),
                         Text(
                           'Dibuat: ${_formatDate(ticket.createdAt)}',
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade500),
                         ),
+                        if (ticket.assignedTo != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Assigned ke: ${_getAssigneeName(ticket.assignedTo)}',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.blue.shade600),
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
 
-                // Tracking Status
-                const Text(
-                  'Tracking Status',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                // ===== TRACKING STATUS =====
+                const Text('Tracking Status',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 _buildTracking(ticket.status),
                 const SizedBox(height: 16),
 
-                // ✅ Admin Panel - posisi benar di dalam children
-                if (authState.user?.role == 'admin') ...[
-                  const Text(
-                    'Kelola Tiket (Admin)',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  // Update Status
-                  DropdownButtonFormField<String>(
-                    value: ticket.status,
-                    decoration: const InputDecoration(
-                      labelText: 'Update Status',
-                      prefixIcon: Icon(Icons.update_outlined),
+                // ===== PANEL KELOLA (ADMIN & HELPDESK) =====
+                if (isAdminOrHelpdesk) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.shade200),
                     ),
-                    items: ['open', 'in_progress', 'resolved', 'closed']
-                        .map((s) => DropdownMenuItem(
-                              value: s,
-                              child: Text(s.replaceAll('_', ' ').toUpperCase()),
-                            ))
-                        .toList(),
-                    onChanged: (newStatus) async {
-                      if (newStatus != null) {
-                        await TicketRepository().updateTicketStatus(
-                          ticketId: ticket.id,
-                          status: newStatus,
-                        );
-                        ref.invalidate(ticketDetailProvider(ticket.id));
-                        ref.invalidate(ticketNotifierProvider);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Status diubah ke $newStatus'),
-                              backgroundColor: Colors.green,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.admin_panel_settings_outlined,
+                                color: Colors.orange.shade700),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Panel Kelola Tiket (${role.toUpperCase()})',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange.shade700,
+                              ),
                             ),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  // Assign Tiket
-                  DropdownButtonFormField<String>(
-                    value: ticket.assignedTo,
-                    decoration: const InputDecoration(
-                      labelText: 'Assign ke Helpdesk',
-                      prefixIcon: Icon(Icons.person_add_outlined),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('Belum di-assign')),
-                      DropdownMenuItem(value: '2', child: Text('Admin Helpdesk')),
-                      DropdownMenuItem(value: '3', child: Text('Helpdesk 1')),
-                      DropdownMenuItem(value: '4', child: Text('Helpdesk 2')),
-                    ],
-                    onChanged: (assignedTo) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Tiket di-assign ke $assignedTo'),
-                            backgroundColor: Colors.blue,
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Update Status
+                        DropdownButtonFormField<String>(
+                          value: _selectedStatus,
+                          decoration: const InputDecoration(
+                            labelText: 'Update Status',
+                            prefixIcon: Icon(Icons.update_outlined),
                           ),
-                        );
-                      }
-                    },
+                          items: ['open', 'in_progress', 'resolved', 'closed']
+                              .map((s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(
+                                        s.replaceAll('_', ' ').toUpperCase()),
+                                  ))
+                              .toList(),
+                          onChanged: (v) =>
+                              setState(() => _selectedStatus = v),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Assign Tiket (Admin & Helpdesk sesuai FR-006)
+                        // DropdownButtonFormField<String>(
+                        //   value: _selectedAssignee ?? ticket.assignedTo,
+                        //   decoration: const InputDecoration(
+                        //     labelText: 'Assign ke Helpdesk',
+                        //     prefixIcon: Icon(Icons.person_add_outlined),
+                        //   ),
+                        //   items: const [
+                        //     DropdownMenuItem(
+                        //         value: null,
+                        //         child: Text('Belum di-assign')),
+                        //     DropdownMenuItem(
+                        //         value: '2',
+                        //         child: Text('Admin Helpdesk')),
+                        //     DropdownMenuItem(
+                        //         value: '3', child: Text('Helpdesk - Siti')),
+                        //   ],
+                        //   onChanged: (v) =>
+                        //       setState(() => _selectedAssignee = v),
+
+
+                        // Assign Tiket — target HANYA helpdesk (bukan admin)
+DropdownButtonFormField<String>(
+  value: _selectedAssignee ?? ticket.assignedTo,
+  decoration: const InputDecoration(
+    labelText: 'Assign ke Helpdesk',
+    prefixIcon: Icon(Icons.person_add_outlined),
+  ),
+  items: const [
+    DropdownMenuItem(
+      value: null,
+      child: Text('Belum di-assign'),
+    ),
+    DropdownMenuItem(
+      value: '3',
+      child: Text('Siti Helpdesk'),
+    ),
+    // Tambah helpdesk lain di sini kalau ada
+  ],
+  onChanged: (v) => setState(() => _selectedAssignee = v),
+
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Tombol Simpan Perubahan
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _isSaving ? null : _saveChanges,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                            ),
+                            icon: _isSaving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.save_outlined),
+                            label: const Text('Simpan Perubahan'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                 ],
 
-                // Komentar
-                const Text(
-                  'Komentar',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                // ===== KOMENTAR =====
+                const Text('Komentar',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 if (ticket.comments.isEmpty)
                   Container(
@@ -182,23 +294,21 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Center(
-                      child: Text('Belum ada komentar'),
-                    ),
+                    child: const Center(child: Text('Belum ada komentar')),
                   )
                 else
                   ...ticket.comments.map((comment) => Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: comment.authorRole == 'admin'
-                              ? Colors.blue.shade50
-                              : Colors.grey.shade50,
+                          color: comment.authorRole == 'user'
+                              ? Colors.grey.shade50
+                              : Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: comment.authorRole == 'admin'
-                                ? Colors.blue.shade200
-                                : Colors.grey.shade200,
+                            color: comment.authorRole == 'user'
+                                ? Colors.grey.shade200
+                                : Colors.blue.shade200,
                           ),
                         ),
                         child: Column(
@@ -217,13 +327,13 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: comment.authorRole == 'admin'
-                                        ? Colors.blue
-                                        : Colors.grey,
+                                    color: comment.authorRole == 'user'
+                                        ? Colors.grey
+                                        : Colors.blue,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    comment.authorRole,
+                                    comment.authorRole.toUpperCase(),
                                     style: const TextStyle(
                                         color: Colors.white, fontSize: 10),
                                   ),
@@ -243,15 +353,18 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
                       )),
                 const SizedBox(height: 16),
 
-                // Input Komentar
+                // ===== INPUT KOMENTAR — semua role bisa =====
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _commentController,
-                        decoration: const InputDecoration(
-                          hintText: 'Tulis komentar...',
-                          border: OutlineInputBorder(
+                        decoration: InputDecoration(
+                          hintText: role == 'user'
+                              ? 'Tulis balasan...'
+                              : 'Tulis respon helpdesk...',
+                          border: const OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.all(Radius.circular(12)),
                           ),
@@ -261,19 +374,15 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () {
-                        if (_commentController.text.isNotEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Komentar terkirim!')),
-                          );
-                          _commentController.clear();
-                        }
-                      },
+                      onPressed: () => _sendComment(
+                        role,
+                        authState.user?.name ?? 'User',
+                      ),
                       child: const Text('Kirim'),
                     ),
                   ],
                 ),
+                const SizedBox(height: 24),
               ],
             ),
           );
@@ -282,14 +391,24 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
     );
   }
 
+  String _getAssigneeName(String? id) {
+    switch (id) {
+      case '2':
+        return 'Admin Helpdesk';
+      case '3':
+        return 'Helpdesk - Siti';
+      default:
+        return 'Belum di-assign';
+    }
+  }
+
   Widget _buildTracking(String currentStatus) {
     final steps = [
-      {'status': 'open', 'label': 'Tiket Dibuat', 'icon': Icons.add_circle},
-      {'status': 'in_progress', 'label': 'Sedang Diproses', 'icon': Icons.pending},
-      {'status': 'resolved', 'label': 'Diselesaikan', 'icon': Icons.check_circle},
+      {'status': 'open', 'label': 'Dibuat', 'icon': Icons.add_circle},
+      {'status': 'in_progress', 'label': 'Diproses', 'icon': Icons.pending},
+      {'status': 'resolved', 'label': 'Selesai', 'icon': Icons.check_circle},
       {'status': 'closed', 'label': 'Ditutup', 'icon': Icons.cancel},
     ];
-
     final statusOrder = ['open', 'in_progress', 'resolved', 'closed'];
     final currentIndex = statusOrder.indexOf(currentStatus);
 
@@ -301,7 +420,6 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
         final color = isCompleted
             ? AppTheme.getStatusColor(step['status'] as String)
             : Colors.grey.shade300;
-
         return Expanded(
           child: Column(
             children: [

@@ -141,9 +141,9 @@ Container(
   ),
   child: const Text(
     'Demo Login:\n'
-    '👤 User    : user@example.com / 123456\n'
-    '🛠 Helpdesk: helpdesk@example.com / 123456\n'
-    '👑 Admin   : admin@example.com / 123456',
+    '👤 User     : user@example.com / 123456\n'
+    '🛠 Helpdesk : helpdesk@example.com / 123456\n'
+    '👑 Admin    : admin@example.com / 123456',
     style: TextStyle(fontSize: 12, color: Colors.blue),
   ),
 ),

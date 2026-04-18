@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/core/widgets/common_widgets.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/presentation/providers/auth_provider.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/providers/ticket_provider.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/ticket_detail_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/create_ticket_page.dart';
@@ -35,10 +36,12 @@ class _TicketListPageState extends ConsumerState<TicketListPage>
   @override
   Widget build(BuildContext context) {
     final ticketState = ref.watch(ticketNotifierProvider);
+    final role = ref.watch(authProvider).user?.role ?? 'user';
+    final isAdminOrHelpdesk = role == 'admin' || role == 'helpdesk';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daftar Tiket'),
+        title: Text(isAdminOrHelpdesk ? 'Semua Tiket' : 'Tiket Saya'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -105,7 +108,12 @@ class _TicketListPageState extends ConsumerState<TicketListPage>
                             builder: (_) =>
                                 TicketDetailPage(ticketId: ticket.id),
                           ),
-                        ),
+                        ).then((_) {
+                          // Refresh setelah kembali dari detail
+                          ref
+                              .read(ticketNotifierProvider.notifier)
+                              .refresh();
+                        }),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
@@ -176,13 +184,17 @@ class _TicketListPageState extends ConsumerState<TicketListPage>
           );
         }).toList(),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CreateTicketPage()),
-        ),
-        child: const Icon(Icons.add),
-      ),
+      // FAB hanya untuk USER
+      floatingActionButton: !isAdminOrHelpdesk
+          ? FloatingActionButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CreateTicketPage()),
+              ).then((_) =>
+                  ref.read(ticketNotifierProvider.notifier).refresh()),
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 

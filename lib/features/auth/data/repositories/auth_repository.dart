@@ -1,11 +1,11 @@
 import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/data/models/user_model.dart';
 
 class AuthRepository {
-  // Dummy users — 3 role sesuai SRS
+  // Akun dummy sesuai SRS 2.2: Admin, Helpdesk, User
   static final List<Map<String, dynamic>> _dummyUsers = [
     {
       'id': '1',
-      'name': 'Budi User',
+      'name': 'Budi Santoso',
       'email': 'user@example.com',
       'password': '123456',
       'role': 'user',
@@ -31,13 +31,10 @@ class AuthRepository {
     required String password,
   }) async {
     await Future.delayed(const Duration(seconds: 1));
-
     final found = _dummyUsers.where(
       (u) => u['email'] == email && u['password'] == password,
     );
-
     if (found.isEmpty) throw Exception('Email atau password salah');
-
     final u = found.first;
     return {
       'token': 'dummy_token_${u['role']}_${u['id']}',
@@ -56,7 +53,6 @@ class AuthRepository {
     required String password,
   }) async {
     await Future.delayed(const Duration(seconds: 1));
-    // Simulasi sukses — role default 'user'
   }
 
   Future<void> logout() async {

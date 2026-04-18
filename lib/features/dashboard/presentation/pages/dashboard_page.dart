@@ -9,7 +9,7 @@ import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/p
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/ticket_history_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/profile/presentation/pages/profile_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/notification/presentation/pages/notification_page.dart';
-import 'package:ticketing_434241018_zelvia_b2_uts/core/theme/app_theme.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/features/notification/presentation/providers/notification_provider.dart';
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
@@ -17,15 +17,15 @@ class DashboardPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
-    final statsAsync = ref.watch(ticketStatsProvider);
+    final statsAsync = ref.watch(ticketStatsProvider); // auto update
     final isDark = ref.watch(themeModeProvider);
+    final unreadCount = ref.watch(unreadNotifCountProvider); // dynamic badge
     final role = authState.user?.role ?? 'user';
     final isAdminOrHelpdesk = role == 'admin' || role == 'helpdesk';
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // Header
           SliverToBoxAdapter(
             child: Container(
               decoration: const BoxDecoration(
@@ -72,9 +72,11 @@ class DashboardPage extends ConsumerWidget {
                           ),
                           Row(
                             children: [
+                              // Badge notifikasi DYNAMIC
                               IconButton(
                                 icon: Badge(
-                                  label: const Text('2'),
+                                  isLabelVisible: unreadCount > 0,
+                                  label: Text(unreadCount.toString()),
                                   child: const Icon(
                                     Icons.notifications_outlined,
                                     color: Colors.white,
@@ -120,7 +122,6 @@ class DashboardPage extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Role badge
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -129,9 +130,11 @@ class DashboardPage extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          isAdminOrHelpdesk
-                              ? '${role.toUpperCase()} — Akses Pengelola'
-                              : 'USER — Pelapor Tiket',
+                          role == 'admin'
+                              ? '👑 ADMIN — Pengelola Sistem'
+                              : role == 'helpdesk'
+                                  ? '🛠 HELPDESK — Petugas Support'
+                                  : '👤 USER — Pelapor Tiket',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -152,17 +155,15 @@ class DashboardPage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Statistik
                   Text(
                     isAdminOrHelpdesk
                         ? 'Statistik Semua Tiket'
                         : 'Statistik Tiket Saya',
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
+                  // Statistik AUTO UPDATE karena pakai ref.watch
                   statsAsync.when(
                     loading: () => const LoadingWidget(),
                     error: (e, _) =>
@@ -176,7 +177,7 @@ class DashboardPage extends ConsumerWidget {
                       childAspectRatio: 1.4,
                       children: [
                         _StatCard(
-                          label: 'Total Tiket',
+                          label: 'Total',
                           value: stats.total.toString(),
                           icon: Icons.confirmation_number_outlined,
                           color: const Color(0xFF2563EB),
@@ -204,17 +205,14 @@ class DashboardPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Menu — BEDA PER ROLE
                   const Text(
                     'Menu',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
 
-                  // Menu untuk USER
+                  // ===== MENU USER =====
                   if (!isAdminOrHelpdesk)
                     GridView.count(
                       shrinkWrap: true,
@@ -271,7 +269,7 @@ class DashboardPage extends ConsumerWidget {
                       ],
                     ),
 
-                  // Menu untuk ADMIN / HELPDESK
+                  // ===== MENU ADMIN / HELPDESK =====
                   if (isAdminOrHelpdesk)
                     GridView.count(
                       shrinkWrap: true,
@@ -300,8 +298,7 @@ class DashboardPage extends ConsumerWidget {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const TicketListPage(
-                                filterStatus: 'open',
-                              ),
+                                  filterStatus: 'open'),
                             ),
                           ),
                         ),
@@ -336,7 +333,7 @@ class DashboardPage extends ConsumerWidget {
         ],
       ),
 
-      // FAB hanya untuk USER (buat tiket)
+      // FAB hanya untuk USER — admin/helpdesk TIDAK bisa buat tiket
       floatingActionButton: !isAdminOrHelpdesk
           ? FloatingActionButton.extended(
               onPressed: () => Navigator.push(
@@ -356,14 +353,12 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
-
   const _StatCard({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
   });
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -392,21 +387,14 @@ class _StatCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 12,
-                  ),
-                ),
+                Text(value,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold)),
+                Text(label,
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.9), fontSize: 12)),
               ],
             ),
           ],
@@ -421,14 +409,12 @@ class _MenuCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-
   const _MenuCard({
     required this.label,
     required this.icon,
     required this.color,
     required this.onTap,
   });
-
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -445,14 +431,11 @@ class _MenuCard extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 32),
             const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
+            Text(label,
+                style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13)),
           ],
         ),
       ),
