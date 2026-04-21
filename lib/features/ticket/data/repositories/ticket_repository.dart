@@ -1,6 +1,5 @@
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/data/models/ticket_model.dart';
-
-// Global list agar CRUD tampil real-time di semua halaman
+ 
 List<TicketModel> globalTickets = [
   TicketModel(
     id: '1',
@@ -9,7 +8,7 @@ List<TicketModel> globalTickets = [
     status: 'open',
     priority: 'high',
     category: 'Hardware',
-    createdBy: '1', // milik user id=1
+    createdBy: '1',
     createdAt: DateTime.now().subtract(const Duration(hours: 2)),
     updatedAt: DateTime.now().subtract(const Duration(hours: 2)),
   ),
@@ -21,15 +20,15 @@ List<TicketModel> globalTickets = [
     priority: 'medium',
     category: 'Network',
     createdBy: '1',
-    assignedTo: '2',
+    assignedTo: '3', // FIX: ganti dari '2' ke '3' (Siti Helpdesk)
     createdAt: DateTime.now().subtract(const Duration(days: 1)),
     updatedAt: DateTime.now().subtract(const Duration(hours: 5)),
     comments: [
       TicketComment(
         id: 'c1',
         content: 'Sedang dalam pengecekan jaringan.',
-        authorName: 'Admin Helpdesk',
-        authorRole: 'admin',
+        authorName: 'Siti Helpdesk',
+        authorRole: 'helpdesk',
         createdAt: DateTime.now().subtract(const Duration(hours: 5)),
       ),
     ],
@@ -42,7 +41,7 @@ List<TicketModel> globalTickets = [
     priority: 'low',
     category: 'Software',
     createdBy: '1',
-    assignedTo: '2',
+    assignedTo: '3', // FIX: ganti dari '2' ke '3'
     createdAt: DateTime.now().subtract(const Duration(days: 3)),
     updatedAt: DateTime.now().subtract(const Duration(days: 1)),
   ),
@@ -58,32 +57,25 @@ List<TicketModel> globalTickets = [
     updatedAt: DateTime.now().subtract(const Duration(minutes: 30)),
   ),
 ];
-
+ 
 class TicketRepository {
-  // Ambil semua tiket (admin/helpdesk) atau filter by userId (user)
   Future<List<TicketModel>> getTickets({String? status, String? userId}) async {
     await Future.delayed(const Duration(milliseconds: 300));
     var list = List<TicketModel>.from(globalTickets);
-    if (userId != null) {
-      list = list.where((t) => t.createdBy == userId).toList();
-    }
-    if (status != null) {
-      list = list.where((t) => t.status == status).toList();
-    }
+    if (userId != null) list = list.where((t) => t.createdBy == userId).toList();
+    if (status != null) list = list.where((t) => t.status == status).toList();
     return list;
   }
-
+ 
   Future<TicketModel> getTicketDetail(String id) async {
     await Future.delayed(const Duration(milliseconds: 200));
     return globalTickets.firstWhere((t) => t.id == id);
   }
-
+ 
   Future<TicketStatsModel> getTicketStats({String? userId}) async {
     await Future.delayed(const Duration(milliseconds: 200));
     var list = List<TicketModel>.from(globalTickets);
-    if (userId != null) {
-      list = list.where((t) => t.createdBy == userId).toList();
-    }
+    if (userId != null) list = list.where((t) => t.createdBy == userId).toList();
     return TicketStatsModel(
       total: list.length,
       open: list.where((t) => t.status == 'open').length,
@@ -92,7 +84,7 @@ class TicketRepository {
       closed: list.where((t) => t.status == 'closed').length,
     );
   }
-
+ 
   Future<TicketModel> createTicket({
     required String title,
     required String description,
@@ -112,10 +104,10 @@ class TicketRepository {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
-    globalTickets.add(newTicket); // Tambah ke global list
+    globalTickets.add(newTicket);
     return newTicket;
   }
-
+ 
   Future<void> updateTicketStatus({
     required String ticketId,
     required String status,
@@ -125,22 +117,15 @@ class TicketRepository {
     if (idx != -1) {
       final old = globalTickets[idx];
       globalTickets[idx] = TicketModel(
-        id: old.id,
-        title: old.title,
-        description: old.description,
-        status: status, // Update status
-        priority: old.priority,
-        category: old.category,
-        createdBy: old.createdBy,
-        assignedTo: old.assignedTo,
-        createdAt: old.createdAt,
-        updatedAt: DateTime.now(),
-        comments: old.comments,
-        attachments: old.attachments,
+        id: old.id, title: old.title, description: old.description,
+        status: status, priority: old.priority, category: old.category,
+        createdBy: old.createdBy, assignedTo: old.assignedTo,
+        createdAt: old.createdAt, updatedAt: DateTime.now(),
+        comments: old.comments, attachments: old.attachments,
       );
     }
   }
-
+ 
   Future<void> assignTicket({
     required String ticketId,
     required String? assignedTo,
@@ -150,22 +135,15 @@ class TicketRepository {
     if (idx != -1) {
       final old = globalTickets[idx];
       globalTickets[idx] = TicketModel(
-        id: old.id,
-        title: old.title,
-        description: old.description,
-        status: old.status,
-        priority: old.priority,
-        category: old.category,
-        createdBy: old.createdBy,
-        assignedTo: assignedTo, // Update assignedTo
-        createdAt: old.createdAt,
-        updatedAt: DateTime.now(),
-        comments: old.comments,
-        attachments: old.attachments,
+        id: old.id, title: old.title, description: old.description,
+        status: old.status, priority: old.priority, category: old.category,
+        createdBy: old.createdBy, assignedTo: assignedTo,
+        createdAt: old.createdAt, updatedAt: DateTime.now(),
+        comments: old.comments, attachments: old.attachments,
       );
     }
   }
-
+ 
   Future<void> addComment({
     required String ticketId,
     required String content,
@@ -184,16 +162,10 @@ class TicketRepository {
         createdAt: DateTime.now(),
       );
       globalTickets[idx] = TicketModel(
-        id: old.id,
-        title: old.title,
-        description: old.description,
-        status: old.status,
-        priority: old.priority,
-        category: old.category,
-        createdBy: old.createdBy,
-        assignedTo: old.assignedTo,
-        createdAt: old.createdAt,
-        updatedAt: DateTime.now(),
+        id: old.id, title: old.title, description: old.description,
+        status: old.status, priority: old.priority, category: old.category,
+        createdBy: old.createdBy, assignedTo: old.assignedTo,
+        createdAt: old.createdAt, updatedAt: DateTime.now(),
         comments: [...old.comments, newComment],
         attachments: old.attachments,
       );

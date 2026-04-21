@@ -3,25 +3,50 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/core/theme/app_theme.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/notification/presentation/providers/notification_provider.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/ticket_detail_page.dart';
-
+ 
 class NotificationPage extends ConsumerWidget {
   const NotificationPage({super.key});
-
+ 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifications = ref.watch(notificationProvider);
     final unreadCount = ref.watch(unreadNotifCountProvider);
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+ 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Notifikasi ($unreadCount belum dibaca)'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Notifikasi',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            if (unreadCount > 0)
+              Text(
+                '$unreadCount belum dibaca',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF94A3B8)
+                      : Colors.white70,
+                ),
+              ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () =>
                 ref.read(notificationProvider.notifier).markAllAsRead(),
-            child: const Text(
-              'Tandai semua',
-              style: TextStyle(color: Colors.white),
+            child: Text(
+              'Baca Semua',
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF4F7EFF)
+                    : Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -31,44 +56,91 @@ class NotificationPage extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_none_outlined,
-                      size: 64, color: Colors.grey.shade400),
+                  Container(
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F7EFF).withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.notifications_none_rounded,
+                      size: 44,
+                      color: const Color(0xFF4F7EFF).withOpacity(0.5),
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Tidak ada notifikasi',
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: isDark
+                          ? const Color(0xFFE2E8F0)
+                          : const Color(0xFF1A1D3B),
+                    ),
                   ),
                 ],
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 80),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final notif = notifications[index];
+                final statusColor = AppTheme.getStatusColor(notif.status);
+ 
                 return Dismissible(
                   key: Key(notif.id),
                   direction: DismissDirection.endToStart,
-                  onDismissed: (_) {
-                    ref.read(notificationProvider.notifier).remove(notif.id);
-                  },
+                  onDismissed: (_) =>
+                      ref.read(notificationProvider.notifier).remove(notif.id),
                   background: Container(
-                    color: Colors.red,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 16),
-                    child: const Icon(Icons.delete, color: Colors.white),
+                    padding: const EdgeInsets.only(right: 18),
+                    child: const Icon(Icons.delete_rounded,
+                        color: Colors.white, size: 20),
                   ),
-                  child: Card(
-                    color: notif.isRead ? null : Colors.blue.shade50,
-                    margin: const EdgeInsets.only(bottom: 12),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: notif.isRead
+                          ? (isDark
+                              ? const Color(0xFF1C1F2E)
+                              : Colors.white)
+                          : (isDark
+                              ? const Color(0xFF1C2240)
+                              : const Color(0xFFF0F4FF)),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: notif.isRead
+                            ? (isDark
+                                ? const Color(0xFF2E3147)
+                                : Colors.transparent)
+                            : const Color(0xFF4F7EFF).withOpacity(
+                                isDark ? 0.3 : 0.2),
+                        width: 0.8,
+                      ),
+                      boxShadow: isDark
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                    ),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       onTap: () {
-                        // Tandai sudah dibaca — badge langsung berkurang
                         ref
                             .read(notificationProvider.notifier)
                             .markAsRead(notif.id);
-                        // Navigasi ke detail tiket
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -78,24 +150,24 @@ class NotificationPage extends ConsumerWidget {
                         );
                       },
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(13),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(10),
+                              padding: const EdgeInsets.all(9),
                               decoration: BoxDecoration(
-                                color: AppTheme.getStatusColor(notif.status)
-                                    .withOpacity(0.15),
-                                shape: BoxShape.circle,
+                                color: statusColor
+                                    .withOpacity(isDark ? 0.15 : 0.1),
+                                borderRadius: BorderRadius.circular(11),
                               ),
                               child: Icon(
-                                _getNotifIcon(notif.status),
-                                color: AppTheme.getStatusColor(notif.status),
-                                size: 20,
+                                _icon(notif.status),
+                                color: statusColor,
+                                size: 18,
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 11),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,37 +179,45 @@ class NotificationPage extends ConsumerWidget {
                                           notif.title,
                                           style: TextStyle(
                                             fontWeight: notif.isRead
-                                                ? FontWeight.normal
+                                                ? FontWeight.w500
                                                 : FontWeight.bold,
-                                            fontSize: 14,
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? const Color(0xFFE2E8F0)
+                                                : const Color(0xFF1A1D3B),
                                           ),
                                         ),
                                       ),
                                       if (!notif.isRead)
                                         Container(
-                                          width: 8,
-                                          height: 8,
+                                          width: 7,
+                                          height: 7,
                                           decoration: const BoxDecoration(
-                                            color: Colors.blue,
+                                            color: Color(0xFF4F7EFF),
                                             shape: BoxShape.circle,
                                           ),
                                         ),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 3),
                                   Text(
                                     notif.message,
                                     style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? const Color(0xFF64748B)
+                                          : Colors.grey.shade500,
+                                      height: 1.4,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 5),
                                   Text(
-                                    _formatDate(notif.createdAt),
+                                    _time(notif.createdAt),
                                     style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey.shade500,
+                                      fontSize: 10,
+                                      color: isDark
+                                          ? const Color(0xFF475569)
+                                          : Colors.grey.shade400,
                                     ),
                                   ),
                                 ],
@@ -153,23 +233,18 @@ class NotificationPage extends ConsumerWidget {
             ),
     );
   }
-
-  IconData _getNotifIcon(String status) {
+ 
+  IconData _icon(String status) {
     switch (status) {
-      case 'open':
-        return Icons.folder_open_outlined;
-      case 'in_progress':
-        return Icons.pending_outlined;
-      case 'resolved':
-        return Icons.check_circle_outline;
-      case 'closed':
-        return Icons.cancel_outlined;
-      default:
-        return Icons.notifications_outlined;
+      case 'open': return Icons.folder_open_rounded;
+      case 'in_progress': return Icons.pending_rounded;
+      case 'resolved': return Icons.check_circle_rounded;
+      case 'closed': return Icons.cancel_rounded;
+      default: return Icons.notifications_rounded;
     }
   }
-
-  String _formatDate(DateTime date) {
+ 
+  String _time(DateTime date) {
     final diff = DateTime.now().difference(date);
     if (diff.inMinutes < 60) return '${diff.inMinutes} menit lalu';
     if (diff.inHours < 24) return '${diff.inHours} jam lalu';

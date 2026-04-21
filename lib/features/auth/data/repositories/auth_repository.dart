@@ -1,7 +1,7 @@
 import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/data/models/user_model.dart';
 
 class AuthRepository {
-  // Akun dummy sesuai SRS 2.2: Admin, Helpdesk, User
+  // Akun dummy: Admin, Helpdesk, User
   static final List<Map<String, dynamic>> _dummyUsers = [
     {
       'id': '1',
