@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
  
+// class 1 (ResetPasswordPage) - wadah
+// Stateful -> Halaman yg isinya bisa berubah-ubah (Kalau ada sesuatu yang berubah di layar). Contoh hal reset password - ada loading spinner yg muncul/hilang, ada tampilan yg berubah dari form ke "email terkirim"
+// Stateless -> Halaman yg isinya tidak pernah berubah. Contoh halaman "Tentang Aplikasi" yang hanya menampilkan teks statis
+// super.key -> ID Unik utk setiap widget - utk melacak widget mana yg perlu diupdate
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({super.key});
  
   @override
+  // createState() = flutter memanggil sekali saja saat halaman pertama dibuat
   State<ResetPasswordPage> createState() => _ResetPasswordPageState();
 }
  
+// var yang bisa berubah dan mempengaruhi tampilan
+// class 2 (_ResetPasswordPageState) - core isi nya
+// tanda (_) didepan artinya private. hanya bisa dipakai di class ini saja
 class _ResetPasswordPageState extends State<ResetPasswordPage> {
-  final _emailController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
-  bool _emailSent = false;
+  final _emailController = TextEditingController(); // TextEditingController -> pengontrol utk text field. kita bisa baca apa yg diketik user
+  final _formKey = GlobalKey<FormState>(); // utk memicu validasi semua field dari form sekaligus
+  bool _isLoading = false; // variabel untuk tahu apakah sedang loading atau tidak. Digunakan untuk menampilkan spinner atau tombol normal.
+  bool _emailSent = false; // variabel untuk tahu apakah email sudah "terkirim". Kalau true, tampilan berubah dari form ke halaman sukses.
  
+  // Dispose utk membersihkan resource, dispose() dipanggil saat seluruh halaman ResetPasswordPage ditutup/dihapus dr layar.
+  // Contoh : Navigator.pop(context) -> waktu kita klik "Kembali ke Login", dispose() baru dijalankan
   @override
   void dispose() {
     _emailController.dispose();
@@ -45,7 +55,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         children: [
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20), // jarak dalam (spt CSS padding)
             decoration: BoxDecoration(
               color: const Color(0xFFFF9F43).withOpacity(0.12),
               borderRadius: BorderRadius.circular(20),
@@ -127,7 +137,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                         await Future.delayed(const Duration(seconds: 2));
                         setState(() {
                           _isLoading = false;
-                          _emailSent = true;
+                          _emailSent = true; // ganti tampilan ke sukses
                         });
                       }
                     },
@@ -176,7 +186,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         ),
         const SizedBox(height: 24),
         const Text(
-          'Email Terkirim! ✅',
+          'Email Terkirim!',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,

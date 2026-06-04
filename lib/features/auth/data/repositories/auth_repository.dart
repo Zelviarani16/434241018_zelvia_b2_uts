@@ -2,6 +2,7 @@ import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/data/models/user
 
 class AuthRepository {
   // Akun dummy: Admin, Helpdesk, User
+  // Static --> var ini milik class, bukan milik object. Bisa dipakai tanpa membaut object dulu
   static final List<Map<String, dynamic>> _dummyUsers = [
     {
       'id': '1',
@@ -38,6 +39,7 @@ class AuthRepository {
     final u = found.first;
     return {
       'token': 'dummy_token_${u['role']}_${u['id']}',
+      // Ubah jadi model
       'user': UserModel(
         id: u['id'],
         name: u['name'],
