@@ -1,18 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ticketing_434241018_zelvia_b2_uts/core/theme/app_theme.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/notification/presentation/providers/notification_provider.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/ticket_detail_page.dart';
- 
-class NotificationPage extends ConsumerWidget {
+
+class NotificationPage extends ConsumerStatefulWidget {
   const NotificationPage({super.key});
- 
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationPage> createState() => _NotificationPageState();
+}
+
+class _NotificationPageState extends ConsumerState<NotificationPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh notif setiap kali halaman dibuka
+    Future.microtask(() =>
+        ref.read(notificationProvider.notifier).loadNotifications());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notifications = ref.watch(notificationProvider);
     final unreadCount = ref.watch(unreadNotifCountProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
- 
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -27,7 +39,7 @@ class NotificationPage extends ConsumerWidget {
                 '$unreadCount belum dibaca',
                 style: TextStyle(
                   fontSize: 11,
-                  color: Theme.of(context).brightness == Brightness.dark
+                  color: isDark
                       ? const Color(0xFF94A3B8)
                       : Colors.white70,
                 ),
@@ -41,9 +53,7 @@ class NotificationPage extends ConsumerWidget {
             child: Text(
               'Baca Semua',
               style: TextStyle(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFF4F7EFF)
-                    : Colors.white,
+                color: isDark ? const Color(0xFF4F7EFF) : Colors.white,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -87,8 +97,8 @@ class NotificationPage extends ConsumerWidget {
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final notif = notifications[index];
-                final statusColor = AppTheme.getStatusColor(notif.status);
- 
+                const statusColor = Color(0xFF4F7EFF);
+
                 return Dismissible(
                   key: Key(notif.id),
                   direction: DismissDirection.endToStart,
@@ -109,9 +119,7 @@ class NotificationPage extends ConsumerWidget {
                     margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
                       color: notif.isRead
-                          ? (isDark
-                              ? const Color(0xFF1C1F2E)
-                              : Colors.white)
+                          ? (isDark ? const Color(0xFF1C1F2E) : Colors.white)
                           : (isDark
                               ? const Color(0xFF1C2240)
                               : const Color(0xFFF0F4FF)),
@@ -121,8 +129,8 @@ class NotificationPage extends ConsumerWidget {
                             ? (isDark
                                 ? const Color(0xFF2E3147)
                                 : Colors.transparent)
-                            : const Color(0xFF4F7EFF).withOpacity(
-                                isDark ? 0.3 : 0.2),
+                            : const Color(0xFF4F7EFF)
+                                .withOpacity(isDark ? 0.3 : 0.2),
                         width: 0.8,
                       ),
                       boxShadow: isDark
@@ -141,13 +149,15 @@ class NotificationPage extends ConsumerWidget {
                         ref
                             .read(notificationProvider.notifier)
                             .markAsRead(notif.id);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                TicketDetailPage(ticketId: notif.ticketId),
-                          ),
-                        );
+                        if (notif.ticketId.isNotEmpty) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  TicketDetailPage(ticketId: notif.ticketId),
+                            ),
+                          );
+                        }
                       },
                       child: Padding(
                         padding: const EdgeInsets.all(13),
@@ -161,9 +171,9 @@ class NotificationPage extends ConsumerWidget {
                                     .withOpacity(isDark ? 0.15 : 0.1),
                                 borderRadius: BorderRadius.circular(11),
                               ),
-                              child: Icon(
-                                _icon(notif.status),
-                                color: statusColor,
+                              child: const Icon(
+                                Icons.notifications_rounded,
+                                color: Colors.white,
                                 size: 18,
                               ),
                             ),
@@ -233,17 +243,7 @@ class NotificationPage extends ConsumerWidget {
             ),
     );
   }
- 
-  IconData _icon(String status) {
-    switch (status) {
-      case 'open': return Icons.folder_open_rounded;
-      case 'in_progress': return Icons.pending_rounded;
-      case 'resolved': return Icons.check_circle_rounded;
-      case 'closed': return Icons.cancel_rounded;
-      default: return Icons.notifications_rounded;
-    }
-  }
- 
+
   String _time(DateTime date) {
     final diff = DateTime.now().difference(date);
     if (diff.inMinutes < 60) return '${diff.inMinutes} menit lalu';

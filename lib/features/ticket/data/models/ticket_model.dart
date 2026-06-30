@@ -7,6 +7,7 @@ class TicketModel {
   final String category;
   final String createdBy;
   final String? assignedTo;
+  final String? assigneeName;
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<TicketComment> comments;
@@ -25,9 +26,11 @@ class TicketModel {
     required this.updatedAt,
     this.comments = const [],
     this.attachments = const [],
+    this.assigneeName,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> json) {
+    final assignee = json['assignee'] as Map<String, dynamic>?;
     return TicketModel(
       id: json['id']?.toString() ?? '',
       title: json['title'] ?? '',
@@ -35,18 +38,20 @@ class TicketModel {
       status: json['status'] ?? 'open',
       priority: json['priority'] ?? 'medium',
       category: json['category'] ?? '',
-      createdBy: json['created_by']?.toString() ?? '',
+      createdBy: json['user_id']?.toString() ?? '',
       assignedTo: json['assigned_to']?.toString(),
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
-      comments: (json['comments'] as List?)
-          ?.map((e) => TicketComment.fromJson(e))
-          .toList() ??
+      comments:
+          (json['comments'] as List?)
+              ?.map((e) => TicketComment.fromJson(e))
+              .toList() ??
           [],
       attachments: List<String>.from(json['attachments'] ?? []),
+      assigneeName: assignee?['name'],
     );
   }
-}
+} // ← tutup TicketModel
 
 class TicketComment {
   final String id;
@@ -64,16 +69,16 @@ class TicketComment {
   });
 
   factory TicketComment.fromJson(Map<String, dynamic> json) {
+    final author = json['author'] as Map<String, dynamic>?;
     return TicketComment(
       id: json['id']?.toString() ?? '',
       content: json['content'] ?? '',
-      authorName: json['author_name'] ?? '',
-      authorRole: json['author_role'] ?? 'user',
-      createdAt:
-      DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      authorName: author?['name'] ?? 'User',
+      authorRole: author?['role'] ?? 'user',
+      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );
   }
-}
+} // ← tutup TicketComment
 
 class TicketStatsModel {
   final int total;
@@ -89,4 +94,4 @@ class TicketStatsModel {
     required this.resolved,
     required this.closed,
   });
-}
+} // ← tutup TicketStatsModel

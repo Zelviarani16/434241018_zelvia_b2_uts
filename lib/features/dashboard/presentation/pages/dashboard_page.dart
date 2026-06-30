@@ -7,6 +7,7 @@ import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/p
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/ticket_list_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/create_ticket_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/ticket_history_page.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/pages/helpdesk_ticket_list_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/profile/presentation/pages/profile_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/notification/presentation/pages/notification_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/notification/presentation/providers/notification_provider.dart';
@@ -29,7 +30,7 @@ class _MainShellState extends ConsumerState<MainShell> {
 
     final pages = [
       const _DashboardContent(),
-      const TicketListPage(),
+      role == 'helpdesk' ? const HelpdeskTicketListPage() : const TicketListPage(),
       const NotificationPage(),
       const ProfilePage(),
     ];
@@ -63,7 +64,7 @@ class _MainShellState extends ConsumerState<MainShell> {
             BottomNavigationBarItem(
               icon: const Icon(Icons.confirmation_number_outlined),
               activeIcon: const Icon(Icons.confirmation_number_rounded),
-              label: isAdminOrHelpdesk ? 'Tiket' : 'Tiket Saya',
+              label: role == 'helpdesk' ? 'Ditugaskan' : (role == 'admin' ? 'Tiket' : 'Tiket Saya'),
             ),
             BottomNavigationBarItem(
               icon: unreadCount > 0
@@ -99,10 +100,15 @@ class _DashboardContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
-    final statsAsync = ref.watch(ticketStatsProvider);
-    final isDark = ref.watch(themeModeProvider);
+    // Admin: stats semua tiket | Helpdesk: stats tiket yang ditugaskan | User: stats tiket sendiri
     final role = authState.user?.role ?? 'user';
-    final isAdminOrHelpdesk = role == 'admin' || role == 'helpdesk';
+    final statsAsync = role == 'helpdesk'
+        ? ref.watch(helpdeskStatsProvider)
+        : ref.watch(ticketStatsProvider);
+    final isDark = ref.watch(themeModeProvider);
+    final isAdmin = role == 'admin';
+    final isHelpdesk = role == 'helpdesk';
+    final isAdminOrHelpdesk = isAdmin || isHelpdesk;
     final name = authState.user?.name ?? 'User';
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
@@ -223,9 +229,11 @@ class _DashboardContent extends ConsumerWidget {
                 children: [
                   _sectionTitle(
                     context,
-                    isAdminOrHelpdesk
+                    isAdmin
                         ? 'Statistik Semua Tiket'
-                        : 'Statistik Tiket Saya',
+                        : isHelpdesk
+                            ? 'Statistik Tiket Saya (Ditugaskan)'
+                            : 'Statistik Tiket Saya',
                   ),
                   const SizedBox(height: 14),
                   statsAsync.when(
@@ -285,7 +293,7 @@ class _DashboardContent extends ConsumerWidget {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 1.55,
+                      childAspectRatio: 1.35,
                       children: [
                         _MenuCard(
                           label: 'Buat Tiket',
@@ -346,15 +354,15 @@ class _DashboardContent extends ConsumerWidget {
                       ],
                     ),
 
-                  // Menu ADMIN / HELPDESK
-                  if (isAdminOrHelpdesk)
+                  // ── Menu ADMIN ──
+                  if (isAdmin)
                     GridView.count(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 1.55,
+                      childAspectRatio: 1.35,
                       children: [
                         _MenuCard(
                           label: 'Semua Tiket',
@@ -396,6 +404,63 @@ class _DashboardContent extends ConsumerWidget {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const TicketHistoryPage(),
+                            ),
+                          ),
+                        ),
+                        _MenuCard(
+                          label: 'Profile',
+                          subtitle: 'Data akun saya',
+                          icon: Icons.person_rounded,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF7C5CFC), Color(0xFFAB7BFF)],
+                          ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfilePage(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  // ── Menu HELPDESK (sesuai SRS FR-006) ──
+                  if (isHelpdesk)
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.35,
+                      children: [
+                        _MenuCard(
+                          label: 'Tiket Ditugaskan',
+                          subtitle: 'Tiket yang harus ditangani',
+                          icon: Icons.assignment_rounded,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF4F7EFF), Color(0xFF7C5CFC)],
+                          ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const HelpdeskTicketListPage(),
+                            ),
+                          ),
+                        ),
+                        _MenuCard(
+                          label: 'Riwayat Tugas',
+                          subtitle: 'Tiket yang ditangani',
+                          icon: Icons.history_rounded,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF9F43), Color(0xFFFF6B6B)],
+                          ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const HelpdeskTicketListPage(
+                                filterStatus: 'closed',
+                              ),
                             ),
                           ),
                         ),
@@ -612,7 +677,7 @@ class _MenuCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(20),
@@ -626,7 +691,7 @@ class _MenuCard extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(8),
@@ -636,25 +701,30 @@ class _MenuCard extends StatelessWidget {
               ),
               child: Icon(icon, color: Colors.white, size: 20),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+            const SizedBox(height: 10),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 11,
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 11,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

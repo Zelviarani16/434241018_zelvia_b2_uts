@@ -233,12 +233,14 @@ class _CreateTicketPageState extends ConsumerState<CreateTicketPage> {
                             try {
                               final userId =
                                   ref.read(authProvider).user?.id ?? '1';
+                              final token = ref.read(tokenProvider);
                               await TicketRepository().createTicket(
                                 title: _titleController.text,
                                 description: _descController.text,
                                 priority: _priority,
                                 category: _category,
                                 createdBy: userId,
+                                token: token,
                               );
                               ref.invalidate(ticketNotifierProvider);
                               ref.invalidate(ticketStatsProvider);

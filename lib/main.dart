@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/core/theme/app_theme.dart';
-import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/presentation/pages/login_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/splash/presentation/pages/splash_page.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/ticket/presentation/providers/ticket_provider.dart';
 

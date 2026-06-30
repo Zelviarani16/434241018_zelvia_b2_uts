@@ -1,63 +1,62 @@
+import 'package:dio/dio.dart';
+import 'package:ticketing_434241018_zelvia_b2_uts/core/constants/app_constants.dart';
 import 'package:ticketing_434241018_zelvia_b2_uts/features/auth/data/models/user_model.dart';
 
 class AuthRepository {
-  // Akun dummy: Admin, Helpdesk, User
-  // Static --> var ini milik class, bukan milik object. Bisa dipakai tanpa membaut object dulu
-  static final List<Map<String, dynamic>> _dummyUsers = [
-    {
-      'id': '1',
-      'name': 'Budi Santoso',
-      'email': 'user@example.com',
-      'password': '123456',
-      'role': 'user',
-    },
-    {
-      'id': '2',
-      'name': 'Admin Helpdesk',
-      'email': 'admin@example.com',
-      'password': '123456',
-      'role': 'admin',
-    },
-    {
-      'id': '3',
-      'name': 'Siti Helpdesk',
-      'email': 'helpdesk@example.com',
-      'password': '123456',
-      'role': 'helpdesk',
-    },
-  ];
+  final Dio _dio = Dio(BaseOptions(
+    baseUrl: AppConstants.baseUrl,
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 10),
+    headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+  ));
 
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
-    await Future.delayed(const Duration(seconds: 1));
-    final found = _dummyUsers.where(
-      (u) => u['email'] == email && u['password'] == password,
-    );
-    if (found.isEmpty) throw Exception('Email atau password salah');
-    final u = found.first;
-    return {
-      'token': 'dummy_token_${u['role']}_${u['id']}',
-      // Ubah jadi model
-      'user': UserModel(
-        id: u['id'],
-        name: u['name'],
-        email: u['email'],
-        role: u['role'],
-      ).toJson(),
-    };
+    try {
+      final response = await _dio.post('/auth/login', data: {
+        'email': email,
+        'password': password,
+      });
+      return {
+        'token': response.data['token'],
+        'user': response.data['user'],
+      };
+    } on DioException catch (e) {
+      if (e.response?.data?['message'] != null) {
+        throw Exception(e.response!.data['message']);
+      }
+      throw Exception('Gagal terhubung ke server');
+    }
   }
 
   Future<void> register({
     required String name,
     required String email,
     required String password,
+    String role = 'user',
   }) async {
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      await _dio.post('/auth/register', data: {
+        'name': name,
+        'email': email,
+        'password': password,
+        'role': role,
+      });
+    } on DioException catch (e) {
+      if (e.response?.data?['message'] != null) {
+        throw Exception(e.response!.data['message']);
+      }
+      throw Exception('Registrasi gagal');
+    }
   }
 
-  Future<void> logout() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+  Future<void> logout({required String token}) async {
+    try {
+      await _dio.post('/auth/logout',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (_) {}
   }
 }
